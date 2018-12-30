@@ -31,6 +31,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="app\admin.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="app\catLaser.py">
       <SubType>Code</SubType>
     </Compile>
@@ -59,6 +62,9 @@
     <Folder Include="CatLaser\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="app\static\app\scripts\catLaser.js" />
+    <Content Include="app\static\app\scripts\svg.min.js" />
+    <Content Include="app\templates\app\point_details.html" />
     <Content Include="requirements.txt" />
     <Content Include="db.sqlite3" />
     <Content Include="app\static\app\content\bootstrap.css" />
