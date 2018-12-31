@@ -32,10 +32,3 @@ class EdgeForm(ModelForm):
             self.fields['B'].queryset = Point.objects.filter(type=POINT_TYPE[0][0])
             self.fields['Vr'].queryset = Point.objects.filter(type=POINT_TYPE[2][0])
             self.fields['Nr'].queryset = Point.objects.filter(type=POINT_TYPE[2][0])
-
-class PlaygroundForm(ModelForm):
-    def __init__(self, *args, **kwargs):
-        super(PlaygroundForm, self).__init__(*args, **kwargs)
-        if 'initial' in kwargs:
-             self.fields['corners'].queryset = Point.objects.filter(type=POINT_TYPE[0][0])
-             self.fields['run_points'].queryset = Point.objects.filter(type=POINT_TYPE[1][0])
