@@ -7,16 +7,18 @@ from django.http import HttpRequest
 from django.template import RequestContext
 from datetime import datetime
 
-from .models import Point, POINT_TYPE
+from .models import Playground, POINT_TYPE
 
 def home(request):
     """Renders the home page."""
     assert isinstance(request, HttpRequest)
 
-    points = Point.objects.all().order_by('type')
+    playgrounds = Playground.objects.all().order_by('name')
     json_serializer = serializers.get_serializer('json')()
-    points_json = json_serializer.serialize(points,ensure_ascii=False)
+    playgrounds_json = json_serializer.serialize(playgrounds, ensure_ascii=False)
     point_types = POINT_TYPE
+
+    print(playgrounds_json)
 
     return render(
         request,
@@ -24,7 +26,8 @@ def home(request):
         {
             'title':'Cat-Laser-Config',
             'year':datetime.now().year,
-            'points': points_json,
+            'playgrounds': playgrounds,
+            'playgrounds_json': playgrounds_json,
             'point_types': point_types,
         }
     )

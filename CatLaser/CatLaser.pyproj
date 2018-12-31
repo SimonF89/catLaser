@@ -42,7 +42,6 @@
     <Compile Include="app\tests.py" />
     <Compile Include="app\views.py" />
     <Compile Include="app\__init__.py" />
-    <Compile Include="app\migrations\__init__.py" />
     <Compile Include="manage.py" />
     <Compile Include="CatLaser\__init__.py" />
     <Compile Include="CatLaser\settings.py" />
@@ -64,6 +63,7 @@
   <ItemGroup>
     <Content Include="app\static\app\scripts\catLaser.js" />
     <Content Include="app\static\app\scripts\svg.min.js" />
+    <Content Include="app\templates\app\playground_details.html" />
     <Content Include="app\templates\app\point_details.html" />
     <Content Include="requirements.txt" />
     <Content Include="db.sqlite3" />

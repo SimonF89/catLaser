@@ -53,4 +53,10 @@ class Playground(models.Model):
                 self.maxy = points[i].y
             if points[i].y < self.miny:
                 self.miny = points[i].y
-        
+
+
+
+    
+
+
+

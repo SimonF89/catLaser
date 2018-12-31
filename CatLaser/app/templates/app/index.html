@@ -18,16 +18,10 @@
 <div class="row">
     <div class="col-md-4">
         <h2>Aktuell einprogrammierte Punkte</h2>
-        <table>
-            <tr>
-                <th>Type</th>
-                <th>X</th>
-                <th>Y</th>
-            </tr>
-            {% for point in points %}
-                {% include "app/point_details.html" %}
-            {% endfor %}
-        </table>
+        <div>{{playgrounds}}</div>
+        {% for playground in playgrounds %}
+            {% include "app/playground_details.html" %}
+        {% endfor %}
     </div>
     <div id="canvasContainer" class="col-md-8">
         <h2>Playground</h2>
@@ -35,7 +29,7 @@
     </div>
 </div>
 <script>
-    var points = {{ points|safe }};
+    var playgrounds = {{ playgrounds|safe }};
 </script>
 {% endblock %}
 
