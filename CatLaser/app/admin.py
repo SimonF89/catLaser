@@ -18,18 +18,25 @@ class PlaygroundAdmin(admin.ModelAdmin):
     list_display = ('name','minX','minY','maxX','maxY')
     inlines = [PointInline,EdgeInline]
 
-    #def response_add(self, request, new_object):
-    #    obj = self.after_saving_model_and_related_inlines(new_object)
-    #    return super(PlaygroundAdmin, self).response_add(request, obj)
+    def response_add(self, request, new_object):
+        obj = self.after_saving_model_and_related_inlines(new_object)
+        return super(PlaygroundAdmin, self).response_add(request, obj)
 
-    #def response_change(self, request, obj):
-    #    obj = self.after_saving_model_and_related_inlines(obj)
-    #    return super(PlaygroundAdmin, self).response_change(request, obj)
+    def response_change(self, request, obj):
+        print(type(obj))
+        print(obj.id)
+        points = Point.objects.filter(playground=obj)
+        
+        print(points)
+        
 
-    #def after_saving_model_and_related_inlines(self, obj):
-    #    print obj.related_set.all()
-    #    # now we have what we need here... :)
-    #    return obj
+        obj = self.after_saving_model_and_related_inlines(obj)
+        return super(PlaygroundAdmin, self).response_change(request, obj)
+
+    def after_saving_model_and_related_inlines(self, obj):
+        #print(obj.related_set.all())
+        # now we have what we need here... :)
+        return obj
 
 class EdgeAdmin(admin.ModelAdmin):
     form = EdgeForm

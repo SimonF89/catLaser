@@ -37,15 +37,15 @@ class Playground(models.Model):
         self.minY = _miny
         self.maxY = _maxy
 
-    def save(self, *args, **kwargs):
-        points = Point.objects.filter(type=POINT_TYPE[0][0])
-        for element in points:
-            print(element)
-        for element in kwargs:
-            print(element)
-        for element in args:
-            print(element)
-        super(Playground, self).save(*args, **kwargs)
+    #def save(self, *args, **kwargs):
+    #    points = Point.objects.filter(type=POINT_TYPE[0][0])
+    #    for element in points:
+    #        print(element)
+    #    for element in kwargs:
+    #        print(element)
+    #    for element in args:
+    #        print(element)
+    #    super(Playground, self).save(*args, **kwargs)
 
 class Point(models.Model):
     x = models.IntegerField(verbose_name="X-Value")
