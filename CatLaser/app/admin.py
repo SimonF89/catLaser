@@ -1,15 +1,22 @@
 from django.contrib import admin
 
-from .models import Point, Edge, Playground
+from .models import Point, Edge, Playground, PointTypes
 from .forms import EdgeForm
+
 
 
 class PointInline(admin.TabularInline):
     model = Point
     extra = 0
+    min = 3
+
+    def get_queryset(self, request):
+        qs = super(PointInline, self).get_queryset(request)
+        return qs.filter(type=PointTypes.corner)
 
 class EdgeInline(admin.TabularInline):
     model = Edge
+    readonly_fields = ["A", "B", "M", "Vr", "Nr"]
     extra = 0
 
 class PlaygroundAdmin(admin.ModelAdmin):
@@ -18,25 +25,13 @@ class PlaygroundAdmin(admin.ModelAdmin):
     list_display = ('name','minX','minY','maxX','maxY')
     inlines = [PointInline,EdgeInline]
 
-    def response_add(self, request, new_object):
-        obj = self.after_saving_model_and_related_inlines(new_object)
-        return super(PlaygroundAdmin, self).response_add(request, obj)
+    def response_add(self, request, playground_obj):
+        playground_obj.customInit(playground_obj)
+        return super(PlaygroundAdmin, self).response_add(request, playground_obj)
 
-    def response_change(self, request, obj):
-        print(type(obj))
-        print(obj.id)
-        points = Point.objects.filter(playground=obj)
-        
-        print(points)
-        
-
-        obj = self.after_saving_model_and_related_inlines(obj)
-        return super(PlaygroundAdmin, self).response_change(request, obj)
-
-    def after_saving_model_and_related_inlines(self, obj):
-        #print(obj.related_set.all())
-        # now we have what we need here... :)
-        return obj
+    def response_change(self, request, playground_obj):
+        playground_obj.customInit(playground_obj)
+        return super(PlaygroundAdmin, self).response_change(request, playground_obj)
 
 class EdgeAdmin(admin.ModelAdmin):
     form = EdgeForm

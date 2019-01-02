@@ -7,7 +7,7 @@ from django.forms import ModelForm
 from django.contrib.auth.forms import AuthenticationForm
 from django.utils.translation import ugettext_lazy as _
 
-from .models import Point, Edge, Playground, POINT_TYPE
+from .models import Point, Edge, Playground, PointTypes
 
 
 
@@ -26,9 +26,16 @@ class EdgeForm(ModelForm):
     def __init__(self, *args, **kwargs):
         super(EdgeForm, self).__init__(*args, **kwargs)
         if 'initial' in kwargs:
-            for point in Point.objects.all():
-                print(point.type)
-            self.fields['A'].queryset = Point.objects.filter(type=POINT_TYPE[0][0])
-            self.fields['B'].queryset = Point.objects.filter(type=POINT_TYPE[0][0])
-            self.fields['Vr'].queryset = Point.objects.filter(type=POINT_TYPE[2][0])
-            self.fields['Nr'].queryset = Point.objects.filter(type=POINT_TYPE[2][0])
+            self.fields['A'].queryset = Point.objects.filter(type=PointTypes.corner)
+            self.fields['B'].queryset = Point.objects.filter(type=PointTypes.corner)
+            self.fields['Vr'].queryset = Point.objects.filter(type=PointTypes.direction)
+            self.fields['Nr'].queryset = Point.objects.filter(type=PointTypes.normal)
+
+class PlaygroundForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(EdgeForm, self).__init__(*args, **kwargs)
+        if 'initial' in kwargs:
+            self.fields['A'].queryset = Point.objects.filter(type=PointTypes.corner)
+            self.fields['B'].queryset = Point.objects.filter(type=PointTypes.corner)
+            self.fields['Vr'].queryset = Point.objects.filter(type=PointTypes.direction)
+            self.fields['Nr'].queryset = Point.objects.filter(type=PointTypes.normal)

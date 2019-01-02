@@ -3,22 +3,62 @@ Definition of models.
 """
 
 from django.db import models
+import math
 
 
-POINT_TYPE=(
-    ('corner', 'Playground Corner'),
-    ('run_point', 'Point inside the Playground'),
-    ('vector', 'Vector or Direction'),
+
+class PointTypes(models.Model):
+    corner = 'corner'
+    run_point = 'run_point'
+    direction = 'direction'
+    normal = 'normal'
+    middle = 'middle'
+    CHOICES = (
+        (corner, 'Playground Corner'),
+        (run_point, 'Point inside the Playground'),
+        (direction, 'Directional Vector'),
+        (normal, 'Normal Vector'),
+        (middle, 'Middle Point on Edge'),
     )
+
+class point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
 class Playground(models.Model):
     name = models.CharField(verbose_name="Name",default="Playground",max_length=50,)
-    minX = models.IntegerField(verbose_name="Min X",default=0)
-    minY = models.IntegerField(verbose_name="Min Y",default=0)
-    maxX = models.IntegerField(verbose_name="Max X",default=0)
-    maxY = models.IntegerField(verbose_name="Max Y",default=0)
+    minX = models.FloatField(verbose_name="Min X",default=0.0)
+    maxX = models.FloatField(verbose_name="Max X",default=0.0)
+    minY = models.FloatField(verbose_name="Min Y",default=0.0)
+    maxY = models.FloatField(verbose_name="Max Y",default=0.0)
 
-    def calcMinMax(self, points):
+    def customInit(self, playground_instance):
+        # delete all edges and recalculate them
+        edges = Edge.objects.filter(playground=playground_instance)
+        self.deleteEdges(edges)
+        #get all related points and the class-object of this playground
+        points = Point.objects.filter(playground=playground_instance)
+        if len(points) > 2:
+            obj = Playground.objects.select_related().filter(id=self.id)
+            # calc all Min an Max Values of Playground
+            self.calcMinMax(points, obj)
+            # calc all Edges
+            edges = self.calcEdges(points, obj, playground_instance)
+            # calculate correct direction of normals and replace normals with correct once
+            self.calcNormals(edges, playground_instance)
+
+    def deleteEdges(self, edges):
+        for edge in edges:
+            m = edge.M
+            vr = edge.Vr
+            nr = edge.Nr
+            edge.delete()
+            m.delete()
+            vr.delete()
+            nr.delete()
+
+    def calcMinMax(self, points, obj):
         _minx = points[0].x
         _maxx = points[0].x
         _miny = points[0].y
@@ -32,35 +72,217 @@ class Playground(models.Model):
                 _miny = points[i].y
             if points[i].y > _maxy:
                 _maxy = points[i].y
-        self.minX = _minx
-        self.maxX = _maxx
-        self.minY = _miny
-        self.maxY = _maxy
+        obj.update(minX=_minx)
+        obj.update(maxX=_maxx)
+        obj.update(minY=_miny)
+        obj.update(maxY=_maxy)
 
-    #def save(self, *args, **kwargs):
-    #    points = Point.objects.filter(type=POINT_TYPE[0][0])
-    #    for element in points:
-    #        print(element)
-    #    for element in kwargs:
-    #        print(element)
-    #    for element in args:
-    #        print(element)
-    #    super(Playground, self).save(*args, **kwargs)
+    def calcEdges(self, points, obj, playground_instance):
+        edges = []
+        for i in range(1,len(points)):
+            edge = self.initEdge(points[i-1],points[i], playground_instance)
+            edges.append(edge)
+        edge = self.initEdge(points[len(points)-1],points[0], playground_instance)
+        edges.append(edge)
+        return edges
+
+    def initEdge(self, _A, _B, playground_instance):
+        _x = _B.x - _A.x
+        _y = _B.y - _A.y
+        vr = Point(x=_x, y=_y, type=PointTypes.direction, playground=playground_instance)
+        vr.save()
+        nr = Point(x=-_y, y=_x, type=PointTypes.normal, playground=playground_instance)
+        nr.save()
+        _x = _A.x + vr.x * 0.5
+        _y = _A.y + vr.y * 0.5
+        m = Point(x=_x, y=_y, type=PointTypes.middle, playground=playground_instance)
+        m.save()
+        edge = Edge(A=_A, B=_B, Vr=vr, Nr=nr, M=m, playground=playground_instance)
+        edge.save()
+        return edge
+
+    # checks for bad-Intersections see self.badIntersection()
+    def calcNormals(self, edges, playground_instance):
+        for i in range(len(edges)):
+            hits = {"pos":[], "neg":[]}
+            j=0
+            M = point(edges[i].M.x,edges[i].M.y)
+            while j < len(edges):
+                if edges[j] != edges[i]:
+                    intersect, pos, bad, distance = self.get_hits(M, edges[i].Nr, edges[j].A, edges[j].B)
+                    if intersect:
+                        if bad:
+                            x = M.x + 0.2*edges[i].Vr.x
+                            y = M.y + 0.2*edges[i].Vr.y
+                            hits = {"pos":[], "neg":[]}
+                            M=point(x,y)
+                            j=-1
+                        elif pos:
+                            hits["pos"].append({"edgeID":j, "distance":distance})
+                        else:
+                            hits["neg"].append({"edgeID":j, "distance":distance})
+                j+=1
+            if len(hits["neg"])%2 == 1:
+                nr = edges[i].Nr
+                Point.objects.filter(id=nr.id).update(x=-nr.x, y=-nr.y)
+
+    # returns: intersect, pos, parallel, distance
+    def get_hits(self, M, Nr, A, B):
+        x = B.x - A.x
+        y = B.y - A.y
+        vr = point(x,y)
+        if self.badIntersection(M, Nr, A, vr):
+            return True, False, True, 0
+        # calc positive hits
+        _x = M.x + Nr.x * 1000000;
+        _y = M.y + Nr.y * 1000000;
+        Mpos = point(_x,_y)
+        P = self.get_line_intersection(M, Mpos, A, B)
+        if P.x != -6666 and P.y != -6666:
+            distance = math.sqrt((M.x - P.x)**2 + (M.y - P.y)**2)
+            return True, True, False, distance
+        # calc negative hits
+        _x = M.x - Nr.x * 1000000;
+        _y = M.y - Nr.y * 1000000;
+        Mneg = point(_x,_y)
+        P = self.get_line_intersection(M, Mneg, A, B)
+        if P.x != -6666 and P.y != -6666:
+            distance = math.sqrt((M.x - P.x)**2 + (M.y - P.y)**2)
+            return True, False, False, distance
+        else:
+            return False, False, False, 0
+    
+    # checks if there is any bad intersection e.g. intersect with a corner or colinear to a line
+    def badIntersection(self, M, Nr, A, Vr,tol=1e-3):
+        if self.areparallel(Nr,Vr,tol=tol):
+            if -tol <= Vr.x <= tol:
+                if A.x-tol <= M.x <= A.x+tol:
+                    return True
+                else:
+                    return False
+            elif -tol <= Vr.y <= tol:
+                if A.y-tol <= M.y <= A.y+tol:
+                    return True
+                else:
+                    return False
+            else:
+                k1 = (A.x-M.x)/Nr.x
+                k2 = (A.y-M.y)/Nr.y
+                if k1-tol <= k2 <= k1+tol:
+                    return True
+                else:
+                    return False
+        else:
+            if -tol <= Nr.x <= tol:
+                if A.x-tol <= M.x <= A.x+tol:
+                    return True
+                else:
+                    return False
+            elif -tol <= Nr.y <= tol:
+                if A.y-tol <= M.y <= A.y+tol:
+                    return True
+                else:
+                    return False
+            else:
+                k1 = (A.x-M.x)/Nr.x
+                k2 = (A.y-M.y)/Nr.y
+                if k1-tol <= k2 <= k1+tol:
+                    return True
+                else:
+                    B = point(A.x+Vr.x,A.y+Vr.y)
+                    k1 = (B.x-M.x)/Nr.x
+                    k2 = (B.y-M.y)/Nr.y
+                    if k1-tol <= k2 <= k1+tol:
+                        return True
+                    else:
+                        return False
+
+    def areparallel(self, X, Y, tol=1e-10):
+        if -tol<=X.x<=tol and -tol<=Y.x<=tol:
+            if X.y-tol <= Y.y <= X.y+tol:
+                return True
+            else:
+                return False
+        elif -tol<=X.y<=tol and -tol<=Y.y<=tol:
+            if X.x-tol <= Y.x <= X.x+tol:
+                return True
+            else:
+                return False
+        elif -tol<=X.x<=tol or -tol<=Y.x<=tol or -tol<=X.y<=tol or -tol<=Y.y<=tol:
+            return False
+        else:
+            k1 = X.x/Y.x
+            k2 = X.y/Y.y
+            if k1 == k2:
+                return True
+            else:
+                return False
+
+    def get_line_intersection(self, A1, A2, B1, B2):
+        a = A2.y - A1.y
+        b = -B2.y + B1.y
+        c = A2.x - A1.x
+        d = -B2.x + B1.x
+        C1 = B1.y - A1.y
+        C2 = B1.x - A1.x
+    
+        tmp = a * d - b * c
+        if tmp:
+            invMa = d  / tmp
+            invMb = -b / tmp
+            invMc = -c / tmp
+            invMd = a  / tmp
+        
+            m = invMa * C1 + invMb * C2
+            n = invMc * C1 + invMd * C2
+
+            if 0<=m<=1 and 0<=n<=1:
+                return point(A1.x + m * (A2.x - A1.x), A1.y + m * (A2.y - A1.y))
+            else:
+                return point(-6666,-6666)
+        else:
+            return point(-6666,-6666)
 
 class Point(models.Model):
-    x = models.IntegerField(verbose_name="X-Value")
-    y = models.IntegerField(verbose_name="Y-Value")
-    type = models.CharField(choices=POINT_TYPE,verbose_name="Point Type",default=POINT_TYPE[0],max_length=50,)
+    x = models.FloatField(verbose_name="X-Value")
+    y = models.FloatField(verbose_name="Y-Value")
+    type = models.CharField(choices=PointTypes.CHOICES,verbose_name="Point Type",default=PointTypes.corner,max_length=50,)
     playground = models.ForeignKey(Playground,verbose_name="Playground",on_delete=models.CASCADE,)
 
+    def __str__(self):
+        return 'x: ' + str(self.x) + ', y: ' + str(self.y) + ', Type: ' + self.type
+
 class Edge(models.Model):
-    A = models.ForeignKey(Point,verbose_name="Point A",related_name='A',on_delete=models.CASCADE,limit_choices_to={'type':str(POINT_TYPE[0])},)
-    B = models.ForeignKey(Point,verbose_name="Point B",related_name='B',on_delete=models.CASCADE,limit_choices_to={'type':POINT_TYPE[0]},)
-    Vr = models.ForeignKey(Point,verbose_name="Direction Vector",related_name='Vr',on_delete=models.CASCADE,limit_choices_to={'type':POINT_TYPE[2]},)
-    Nr = models.ForeignKey(Point,verbose_name="Normal Vector",related_name='Nr',on_delete=models.CASCADE,limit_choices_to={'type':POINT_TYPE[2]},)
+    A = models.ForeignKey(Point,verbose_name="Point A",related_name='A',on_delete=models.CASCADE)
+    B = models.ForeignKey(Point,verbose_name="Point B",related_name='B',on_delete=models.CASCADE)
+    M = models.ForeignKey(Point,verbose_name="Middle Point",related_name='M',on_delete=models.CASCADE,blank=True, null=True)
+    Vr = models.ForeignKey(Point,verbose_name="Direction Vector",related_name='Vr',on_delete=models.CASCADE)
+    Nr = models.ForeignKey(Point,verbose_name="Normal Vector",related_name='Nr',on_delete=models.CASCADE)
     playground = models.ForeignKey(Playground,verbose_name="Playground",on_delete=models.CASCADE,)
 
     def isHitten(self, currentPosition, direction):
         #if p1-p2 hits edge return true
         #else return false
         pass
+
+    def __str__(self):
+        return 'A: ' + str(self.A) + ', B: ' + str(self.B) + ' , Playground: ' + self.playground.name
+
+
+######################
+#### nice to know ####
+######################
+
+# self.model._meta.get_all_field_names()
+
+
+            
+
+
+                # calculate shortest distance to all intersecting edges! --> for simulation!!!
+                #id = hits["neg"][0]["edgeID"]
+                #distance = hits["neg"][0]["distance"]
+                #for j in range(1,len(hits["neg"])):
+                #    if distance < hits["neg"][j]["distance"]:
+                #        id = hits["neg"][j]["edgeID"]
+                #        distance = hits["neg"][j]["distance"]

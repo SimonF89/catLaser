@@ -7,7 +7,7 @@ from django.http import HttpRequest
 from django.template import RequestContext
 from datetime import datetime
 
-from .models import Playground, POINT_TYPE
+from .models import Playground, PointTypes
 
 def home(request):
     """Renders the home page."""
@@ -16,7 +16,7 @@ def home(request):
     playgrounds = Playground.objects.all().order_by('name')
     json_serializer = serializers.get_serializer('json')()
     playgrounds_json = json_serializer.serialize(playgrounds, ensure_ascii=False)
-    point_types = POINT_TYPE
+    point_types = PointTypes.CHOICES
 
     print(playgrounds_json)
 
