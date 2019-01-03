@@ -20,6 +20,10 @@ class PointTypes(models.Model):
         (normal, 'Normal Vector'),
         (middle, 'Middle Point on Edge'),
     )
+    POINT_CHOICES = (
+        (corner, 'Playground Corner'),
+        (run_point, 'Point inside the Playground'),
+    )
 
 class point:
     def __init__(self, x, y):
@@ -28,25 +32,49 @@ class point:
 
 class Playground(models.Model):
     name = models.CharField(verbose_name="Name",default="Playground",max_length=50,)
+    active = models.BooleanField(verbose_name="active",default=False)
     minX = models.FloatField(verbose_name="Min X",default=0.0)
     maxX = models.FloatField(verbose_name="Max X",default=0.0)
     minY = models.FloatField(verbose_name="Min Y",default=0.0)
     maxY = models.FloatField(verbose_name="Max Y",default=0.0)
 
+    def getEdges(self):
+        return Edge.objects.filter(playground=self)
+    def getPoints(self):
+        return Point.objects.filter(playground=self)
+    def getCorners(self):
+        return Point.objects.filter(playground=self,type=PointTypes.corner)
+    def getRunPoints(self):
+        return Point.objects.filter(playground=self,type=PointTypes.run_point)
+
+    edges = property(getEdges)
+    points = property(getPoints)
+    corners = property(getCorners)
+    run_points = property(getRunPoints)
+
+    ###############################################################################
+    #############################      functions      #############################
+    ###############################################################################
+
     def customInit(self, playground_instance):
+        #### TODO verhindere Duplikate Namen
+        #### TODO verhindere Duplikate Namen
+        #### TODO verhindere Duplikate Namen
+        #### TODO verhindere Duplikate Namen
+        #### TODO verhindere Duplikate Namen
+        if self.name == "Playground":
+            self.name = self.name + ' ' + str(self.id)
+            self.save()
         # delete all edges and recalculate them
-        edges = Edge.objects.filter(playground=playground_instance)
-        self.deleteEdges(edges)
-        #get all related points and the class-object of this playground
-        points = Point.objects.filter(playground=playground_instance)
-        if len(points) > 2:
+        self.deleteEdges(self.edges)
+        if len(self.corners) > 2:
             obj = Playground.objects.select_related().filter(id=self.id)
             # calc all Min an Max Values of Playground
-            self.calcMinMax(points, obj)
+            self.calcMinMax(self.corners, obj)
             # calc all Edges
-            edges = self.calcEdges(points, obj, playground_instance)
+            _edges = self.calcEdges(self.corners, obj, playground_instance)
             # calculate correct direction of normals and replace normals with correct once
-            self.calcNormals(edges, playground_instance)
+            self.calcNormals(_edges, playground_instance)
 
     def deleteEdges(self, edges):
         for edge in edges:

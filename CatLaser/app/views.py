@@ -7,18 +7,59 @@ from django.http import HttpRequest
 from django.template import RequestContext
 from datetime import datetime
 
-from .models import Playground, PointTypes
+from .models import Playground, Edge, Point, PointTypes
 
 def home(request):
     """Renders the home page."""
     assert isinstance(request, HttpRequest)
 
-    playgrounds = Playground.objects.all().order_by('name')
-    json_serializer = serializers.get_serializer('json')()
-    playgrounds_json = json_serializer.serialize(playgrounds, ensure_ascii=False)
     point_types = PointTypes.CHOICES
 
-    print(playgrounds_json)
+    data = []
+    playgrounds = Playground.objects.all().order_by('name')
+
+    for playground in playgrounds:
+        data.append({
+            "ID":playground.id,
+            "active":playground.active,
+            "name":playground.name,
+            "minX":playground.minX,
+            "maxX":playground.maxX,
+            "minY":playground.minY,
+            "maxY":playground.maxY,
+            "edges":[],
+            "run_points":[],
+            })
+        for edge in playground.edges:
+            data[-1]["edges"].append({
+                "ID":edge.id,
+                "A":{
+                    "x":edge.A.x,
+                    "y":edge.A.y,
+                    },
+                "B":{
+                    "x":edge.B.x,
+                    "y":edge.B.y,
+                    },
+                "M":{
+                    "x":edge.M.x,
+                    "y":edge.M.y,
+                    },
+                "Vr":{
+                    "x":edge.Vr.x,
+                    "y":edge.Vr.y,
+                    },
+                "Nr":{
+                    "x":edge.Nr.x,
+                    "y":edge.Nr.y,
+                    },
+            })
+        for runPoint in playground.run_points:
+            data[-1]["run_points"].append({
+                "ID":runPoint.id,
+                "x":runPoint.x,
+                "y":runPoint.y,
+            })
 
     return render(
         request,
@@ -27,8 +68,8 @@ def home(request):
             'title':'Cat-Laser-Config',
             'year':datetime.now().year,
             'playgrounds': playgrounds,
-            'playgrounds_json': playgrounds_json,
             'point_types': point_types,
+            'data':data,
         }
     )
 

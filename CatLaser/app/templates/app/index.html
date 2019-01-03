@@ -9,31 +9,40 @@
 
 {% block content %}
 
+<div disabled="true" id="link_from_django_to_js" 
+            change_status_url="{% url 'change_active' %}"></div>
+
 <div class="jumbotron">
     <h1>Katzenlaser</h1>
     <p class="lead">Der Katzenlaser ist eine Katzenspielzeug bestehend aus zwei Servos, einer Laserdiode und einer Webapplikation zum konfigurieren und simulieren.</p>
     <p><a href="https://github.com/snape6666/catLaser" class="btn btn-primary btn-large">Learn more &raquo;</a></p>
+    <p><a class="btn btn-primary btn-large" onclick="StartSimulation(true);">Start Simulation &raquo;</a></p>
+    <p><a class="btn btn-primary btn-large" onclick="StartSimulation(false);">Stop Simulation &raquo;</a></p>
+    <p><a class="btn btn-primary btn-large" onclick="resetSimulation();">Restet Simulation &raquo;</a></p>
 </div>
 
 <div class="row">
-    <div class="col-md-4">
-        <h2>Aktuell einprogrammierte Punkte</h2>
-        <div>{{playgrounds}}</div>
+    <div id="pointsContainer" class="col-md-4" style="overflow-y: scroll;">
+        <div class="row">
+            <h2>Aktuelle Playgrounds</h2>
+        </div>
         {% for playground in playgrounds %}
             {% include "app/playground_details.html" %}
         {% endfor %}
     </div>
     <div id="canvasContainer" class="col-md-8">
         <h2>Playground</h2>
-        <svg id="playground" height="210" width="500"></svg>
-    </div>
+        <svg id="playground"></svg>
+    </div> 
 </div>
 <script>
-    var playgrounds = {{ playgrounds|safe }};
+    var corners = "{{ playgrounds.corners|safe }}";
+    var playgrounds = "{{ data }}"
 </script>
 {% endblock %}
 
 {% block scripts %}
     {% load staticfiles %}
     <script src="{% static 'app/scripts/catLaser.js' %}"></script>
+    <script src="{% static 'app/scripts/jquery-1.10.2.js' %}"></script>
 {% endblock %}

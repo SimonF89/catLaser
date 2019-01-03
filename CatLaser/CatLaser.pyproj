@@ -34,7 +34,7 @@
     <Compile Include="app\admin.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="app\catLaser.py">
+    <Compile Include="app\ajax.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="app\forms.py" />

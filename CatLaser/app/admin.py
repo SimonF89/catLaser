@@ -8,12 +8,12 @@ from .forms import EdgeForm
 class PointInline(admin.TabularInline):
     model = Point
     extra = 0
-    min = 3
+    min_num = 3
 
     def get_queryset(self, request):
         qs = super(PointInline, self).get_queryset(request)
-        return qs.filter(type=PointTypes.corner)
-
+        return qs.filter(type=PointTypes.corner) | qs.filter(type=PointTypes.run_point)
+    
 class EdgeInline(admin.TabularInline):
     model = Edge
     readonly_fields = ["A", "B", "M", "Vr", "Nr"]
@@ -21,8 +21,8 @@ class EdgeInline(admin.TabularInline):
 
 class PlaygroundAdmin(admin.ModelAdmin):
     search_fields = ['name']
-    exclude = ('minX','minY','maxX','maxY')
-    list_display = ('name','minX','minY','maxX','maxY')
+    readonly_fields = ('active','minX','minY','maxX','maxY')
+    list_display = ('name','active','minX','minY','maxX','maxY')
     inlines = [PointInline,EdgeInline]
 
     def response_add(self, request, playground_obj):
@@ -83,3 +83,9 @@ admin.site.register(Playground, PlaygroundAdmin)
 #    date_hierarchy = 'creationDate'
 #
 #admin.site.register(Todo, TodoAdmin)
+
+
+
+
+
+

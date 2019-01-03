@@ -1,28 +1,28 @@
-﻿<table>
-    <tr>
-        <th colspan="2">Name</th>
-        <td colspan="2">{{ playground.name }}</td>
-    </tr>
-    <tr>
-        <th>min</th>
-        <td>( {{ playground.minx }} , {{ playground.miny }} )</td>
-        <th>max</th>
-        <td>( {{ playground.maxx }} , {{ playground.maxy }} )</td>
-    </tr>
-    <tr>
-        <th colspan="2">Corners</th>
-        <th colspan="2">Run_Points</th>
-    </tr>
-    <tr>
-        <td colspan="2">
-            {% for point in playground.corners %}
-                {% include "app/point_details.html" %}
-            {% endfor %}
-        </td>
-        <td colspan="2">
-            {% for point in playground.run_points %}
-                {% include "app/point_details.html" %}
-            {% endfor %}
-        </td>
-    </tr>
-</table>
+﻿<div style="border:1px solid Silver;">
+    <p><a class="btn btn-primary btn-lg" onclick="setActive(this);" role="button" data="{{ playground.name }}">setActive &raquo;</a></p>
+    <p><a class="btn btn-primary btn-lg" onclick="draw(this);" role="button" data="{{ playground.name }}">Draw &raquo;</a></p>
+    <h4><b>Name: </b>{{ playground.name }}</h4>
+    <div><b>min (</b> {{ playground.minX }} , {{ playground.minY }} <b>) , max (</b> {{ playground.maxX }} , {{ playground.maxY }} <b>)</b></div>
+    <div class="row">
+        <div class="col-md-6">
+            <table>
+                <tr>
+                    <th colspan="2">Corners</th>
+                </tr>
+                {% for point in playground.corners %}
+                    {% include "app/point_details.html" %}
+                {% endfor %}
+            </table>
+        </div>
+        <div class="col-md-6">
+            <table>
+                <tr>
+                    <th colspan="2">Run Points</th>
+                </tr>
+                {% for point in playground.run_points %}
+                    {% include "app/point_details.html" %}
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</div>
