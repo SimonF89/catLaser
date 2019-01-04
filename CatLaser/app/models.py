@@ -5,6 +5,32 @@ Definition of models.
 from django.db import models
 import math
 
+# TODO
+# TODO
+#
+# - add StartPoint -- check if inside the Playground!
+# - add LaserPosition -- needed for calculating alpha and beta angles!
+# - check if run_points sit outside or directly on a edge!
+#   - points directly on a edge generate errors on ZickZack!
+#
+#
+# - Einschraenken der rotation bei ZickZackFeature -> koennte besser sein wenn es nicht so stark variiert??? Testen! eig ja sehr gut!
+#
+#
+#
+#
+#
+#
+# - add WifiConfig -- textinput for wifi pw etc.
+#                     make pw unreadable afterwards!
+#                     if not connected retry!
+#                     if connected - kill hotspot!
+#                     on Start check for wifi-config - if not connected than hotspot!
+# - add Room - calculate Playground automaticaly according to laser-position
+#
+# TODO
+# TODO
+
 
 
 class PointTypes(models.Model):
