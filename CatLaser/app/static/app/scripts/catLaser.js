@@ -445,6 +445,9 @@ function calcNextEventPoint(_eventID) {
     }
 }
 
+
+var CircleMaxRadius = 2000;
+var CircleMaxSpeed = 1000;      // mm per second
 function EventCircle() {
     var CircleResolution = 36;         // amount of steps per circle!
     var CircleTmpCurrentPos = currentPos;
