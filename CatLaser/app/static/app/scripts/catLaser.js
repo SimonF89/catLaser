@@ -59,9 +59,9 @@ function DrawPlayground(playground) {
     if (currentPos) {
         svg.innerHTML += getSvgCircle(currentPos.x, currentPos.y, "black", "black");
     }
-    if (Targets) {
-        for (i = 0; i < Targets.length; i++) {
-            svg.innerHTML += getSvgCircle(Targets[i].x, Targets[i].y, "silver", "yellow");
+    if (SimulationTargets) {
+        for (i = 0; i < SimulationTargets.length; i++) {
+            svg.innerHTML += getSvgCircle(SimulationTargets[i].x, SimulationTargets[i].y, "silver", "yellow");
         }
     }
 }
@@ -156,24 +156,25 @@ function ajaxPOST(name) {
 var maxSpeed = 400;                         // mm per second
 var started = false;
 var updateRate = 20;                        // millis
-var minMaxSpeed = [10000, 15000];              // mm per second
+var minMaxSpeed = [1000, 5000];           // mm per second per axis!
 var featureID = 0;
-var minMaxFeatureDuration = [3000, 6000];  // millis
+var minMaxFeatureDuration = [1000, 3000];  // millis
 var featureDuration = 0;                    // millis
-var eventProbability = 20;                  // %
+var eventProbability = 80;                  // %
 var eventID = null;
 var minMaxEventDuration = [500, 5000];      // millis
 var eventDuration = 0;                      // millis
-var Targets = [];
+var SimulationTargets = [];
 var tmpTargets = [];
-var currentSpeed = 10;                       // mm per second
-var initPosition = { 'x': 20, 'y': 20, 'speed': currentSpeed };
+var SimulationCurrentSpeed = 10;                       // mm per second
+var initPosition = { 'x': 20, 'y': 20, 'speed': SimulationCurrentSpeed, 'OnOff': true };
 var currentPos = initPosition;
+var TmpCurrentPos = initPosition;
 var arrived = false;
 
 function resetSimulation() {
-    currentSpeed = 10;
-    Targets = [];
+    SimulationCurrentSpeed = 10;
+    SimulationTargets = [];
     tmpTargets = [];
     currentPos = initPosition;
     arrived = false;
@@ -193,44 +194,77 @@ function resetSimulation() {
 
 window.setInterval(function () {
     if (started) {
+        console.log("featureID: " + featureID);
+        console.log("eventID: " + eventID);
+        console.log("featureDuration: " + featureDuration);
+        console.log("eventDuration: " + eventDuration);
+    }
+}, 2000);
+
+window.setInterval(function () {
+    if (started) {
         if (activePlayground["active"] !== true) {
             started = false;
             alert("current Playground not active!");
         }
         else {
-            if (Targets.length <= 1) {
+            if (SimulationTargets.length <= 1) {
                 var newPoint = calcNextPoint();
                 if (Array.isArray(newPoint)) {
-                    Targets.concat(newPoint);
+                    SimulationTargets.concat(newPoint);
                 }
                 else {
-                    Targets.push(newPoint);
+                    SimulationTargets.push(newPoint);
                 }
                 arrived = false;
             }
-            if (Targets.length > 1) {
+            if (SimulationTargets.length > 1) {
                 if (arrived) {
-                    Targets.shift();
+                    SimulationTargets.shift(); // pops first element (currentTarget)
+                    // according to eventProbability a Event happens on currentTarget-Point, if no other event is running atm.
+                    if (getRndInteger(0, 100) < eventProbability && eventDuration <= 0) {
+                        eventID = 0; //getRndInteger(0, 7);
+                        SimulationCurrentSpeed = getRndInteger(minMaxSpeed[0], minMaxSpeed[1]);
+                        eventDuration = getRndInteger(minMaxFeatureDuration[0], minMaxFeatureDuration[1]);
+                        /////////////////// DEBUG
+                        /////////////////// DEBUG
+                        console.log("calculating new points for Event: " + eventID);
+                        /////////////////// DEBUG
+                        /////////////////// DEBUG
+                        // save current status of current Targets and position
+                        tmpTargets = SimulationTargets;
+                        TmpCurrentPos = currentPos;
+                        var newPoint = calcNextEventPoint(eventID);
+                        if (Array.isArray(newPoint)) {
+                            SimulationTargets = SimulationTargets.concat(newPoint);
+                        }
+                        else {
+                            SimulationTargets.push(newPoint);
+                        }
+                        SimulationTargets.push(currentPos);
+                        SimulationTargets = SimulationTargets.concat(tmpTargets);
+                    }
                     arrived = false;
                 }
+                SimulationCurrentSpeed = SimulationTargets[0].speed;
                 currentPos = goTowardsNextTarget();
                 redrawSVG();
                 arrived = arrivedTarget();
             }
         }
     }
-    if (featureDuration >= 0) {
-        featureDuration = featureDuration - updateRate;
-        console.log("featureDuration: " + featureDuration);
-    }
     if (eventDuration >= 0) {
         eventDuration = eventDuration - updateRate;
-        console.log("eventDuration: " + eventDuration);
+    }
+    else {
+        if (featureDuration >= 0) {
+            featureDuration = featureDuration - updateRate;
+        }
     }
 }, updateRate);
 
 function goTowardsNextTarget() {
-    var target = Targets[0];
+    var target = SimulationTargets[0];
     var DirX = target.x - currentPos.x;
     var DirY = target.y - currentPos.y;
     DirX = DirX / Math.sqrt(Math.pow(DirX, 2) + Math.pow(DirY, 2));
@@ -242,16 +276,16 @@ function goTowardsNextTarget() {
         DirY = 0;
     }
     //svgScale = [offsetX, offsetY, scaleX, scaleY]
-    var x = currentPos.x + DirX * currentSpeed / 1000 * updateRate / svgScale[2];
-    var y = currentPos.y + DirY * currentSpeed / 1000 * updateRate / svgScale[3];
-    var newPoint = { 'x': x, 'y': y, 'speed': currentSpeed };
+    var x = currentPos.x + DirX * SimulationCurrentSpeed / 1000 * updateRate / svgScale[2];
+    var y = currentPos.y + DirY * SimulationCurrentSpeed / 1000 * updateRate / svgScale[3];
+    var newPoint = { 'x': x, 'y': y, 'speed': SimulationCurrentSpeed, 'OnOff': true };
     //console.log("currentPos: " + JSON.stringify(currentPos) + ", \ncurrentTarget: " + JSON.stringify(target) + ", \nDirX: " + DirX + ", \nDirY: " + DirY + ", \nnew x: " + x + ", \nnew y: " + y + ", \nnewPoint: " + JSON.stringify(newPoint));
     return newPoint;
 }
 
 function arrivedTarget() {
-    var target = Targets[0];
-    var tol = currentSpeed / 1000 * updateRate / 3; // adjust the 1 if it works overruns the Target
+    var target = SimulationTargets[0];
+    var tol = SimulationCurrentSpeed / 1000 * updateRate / 3; // adjust the 1 if it works overruns the Target
     var xmin = currentPos.x - tol;
     var xmax = currentPos.x + tol;
     var ymin = currentPos.y - tol;
@@ -284,25 +318,18 @@ function getRndInteger(min, max) {
 }
 
 function calcNextPoint() {
-    if (eventDuration > 0) {
-        return calcNextEventPoint(eventID);
-    }
-    else if (featureDuration > 0) {
+    if (featureDuration > 0) {
         return calcNextFeaturePoint(featureID);
     }
     else { // eventDuration <= 0 && featureDuration <= 0
-        // TODO if run_points.length = 0 dann....
-        // TODO mit 
-        // TODO var run_points = activePlayground["run_points"];
-        // TODO if (run_points.length === 0)
-        // TODO - set FeatureID != 0 cause this happens only if no Run-Points are selected
-        // TODO - send message so the user knows that this features and some other not working without run_points
-        // TODO
-        // TODO
         var newPoint;
         resetFeatureValues();
-        featureID = getRndInteger(0, 1);
-        currentSpeed = getRndInteger(minMaxSpeed[0], minMaxSpeed[1]);
+        var min = 0;
+        if (activePlayground["run_points"].length <= 0) {
+            var min = 1;  // ignores all Features with runpoints
+        }
+        featureID = getRndInteger(min, 1);
+        SimulationCurrentSpeed = getRndInteger(minMaxSpeed[0], minMaxSpeed[1]);
         featureDuration = getRndInteger(minMaxFeatureDuration[0], minMaxFeatureDuration[1]);
         newPoint = calcNextFeaturePoint(featureID);
         // catch errors in new Point-Calculation
@@ -310,32 +337,13 @@ function calcNextPoint() {
             newPoint = initPosition;
             alert("feature: " + featureID + ", generated a not valid Target!");
         }
-        
-
-        // DONT DELETE!!!!!
-        // DONT DELETE!!!!! - uncomment if all events and features work!!
-        // DONT DELETE!!!!!
-        // calculate new Event-Points
-        //if (getRndInteger(0, 100) < eventProbability) {
-        //    eventID = getRndInteger(0, 7);
-        //    currentSpeed = getRndInteger(minMaxSpeed[0], minMaxSpeed[1]);
-        //    eventDuration = getRndInteger(minMaxFeatureDuration[0], minMaxFeatureDuration[1]);
-        //    newPoint = calcNextEventPoint(eventID);
-        //}
-        //else { // calculate new Feature-Point
-        //    featureID = getRndInteger(0, 2);
-        //    currentSpeed = getRndInteger(minMaxSpeed[0], minMaxSpeed[1]);
-        //    featureDuration = getRndInteger(minMaxFeatureDuration[0], minMaxFeatureDuration[1]);
-        //    newPoint = calcNextFeaturePoint(featureID);
-        //}
-        // DONT DELETE!!!!!
-        // DONT DELETE!!!!!
-        // DONT DELETE!!!!!
         return newPoint;
     }
 }
 
+//////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////  Features  ///////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 function calcNextFeaturePoint(_featureID) {
     switch (_featureID) {
@@ -367,7 +375,7 @@ function FeatureABC() {
             ABCstep = -ABCstep;
             ABCcounter = ABCcounter + ABCstep;
         }
-        return { 'x': run_points[ABCcounter].x, 'y': run_points[ABCcounter].y, 'speed': currentSpeed };
+        return { 'x': run_points[ABCcounter].x, 'y': run_points[ABCcounter].y, 'speed': SimulationCurrentSpeed, 'OnOff': true };
     }
 }
 
@@ -375,8 +383,8 @@ var ZickZackcurrentDir = { 'x': 1, 'y': 1 };
 function FeatureZickZack() {
     var edges = activePlayground['edges'];
     var M;
-    if (Targets.length > 0) {
-        M = Targets[Targets.length - 1];
+    if (SimulationTargets.length > 0) {
+        M = SimulationTargets[SimulationTargets.length - 1];
     }
     else {
         M = currentPos;
@@ -416,11 +424,11 @@ function FeatureZickZack() {
     var randomY = getRndInteger(-100, 100) / 100;
     ZickZackcurrentDir = { 'x': randomX, 'y': randomY };
 
-    return { 'x': newX, 'y': newY, 'speed': currentSpeed };
+    return { 'x': newX, 'y': newY, 'speed': SimulationCurrentSpeed, 'OnOff': true };
 }
 
 function FeatureEdgeRun() {
-    return newPoint; // { 'x': x, 'y': y, 'speed': currentSpeed }
+    return newPoint; // { 'x': x, 'y': y, 'speed': currentSpeed, 'OnOff': true }
 }
 
 // will be executed after a new Playground is loaded
@@ -429,7 +437,9 @@ function resetFeatureValues() {
     ABCstep = 1;
 }
 
+//////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////  Events  ////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 function calcNextEventPoint(_eventID) {
     switch (_eventID) {
@@ -445,45 +455,82 @@ function calcNextEventPoint(_eventID) {
     }
 }
 
-
-var CircleMaxRadius = 2000;
-var CircleMaxSpeed = 1000;      // mm per second
 function EventCircle() {
-    var CircleResolution = 36;         // amount of steps per circle!
-    var CircleTmpCurrentPos = currentPos;
-    var speed = getRndInteger(minMaxSpeed[0], minMaxSpeed[1]);
-    var CircleRadius = eventDuration * speed / (2 * Math.PI);
-    var Circlesteps = 360 / CircleResolution;
+    var Resolution = 20;
+    var CircleMaxRadius = 200;
+    var CircleRadius = getRndInteger(50, CircleMaxRadius);
+    var CircleRotFactor = getRndInteger(10, 20);        // Between 1 and 2 rotations per second with factor 10 cause its an integer
+    var TimeSteps = eventDuration * CircleRotFactor / Resolution;
+    var AngleSteps = 360 / Resolution;
+
     var newPoints = [];
-    var newX, newY;
-    for (i = 0; i < CircleResolution; i++) {
-        newX = CircleRadius * Math.sin(toRadians(CircleCurrentAngle));
-        newY = CircleRadius * Math.cos(toRadians(CircleCurrentAngle));
-        CircleCurrentAngle = CircleCurrentAngle + Circlesteps;
-        newPoints.append({ 'x': newX, 'y': newY, 'speed': currentSpeed });
+    var newX = 0, newY = 0, angle = 0, t = 0;
+    while (t < eventDuration) {
+        newX = CircleRadius * Math.cos(toRadians(angle));
+        newY = CircleRadius * Math.sin(toRadians(angle));
+        var x = TmpCurrentPos.x + newX;
+        var y = TmpCurrentPos.y + newY;
+        newPoints.push({ 'x': x, 'y': y, 'speed': SimulationCurrentSpeed, 'OnOff': true });
+        angle = angle + AngleSteps;
+        if (angle > 360) {
+            angle = angle - 360;
+        }
+        t = t + TimeSteps;
     }
-    newPoints.append(CircleTmpCurrentPos);
     return newPoints;
 }
 
+// generates two mirrored sinus on each side of the y-axis along the x-axis
 function EventSinCos() {
-    return newPoint; // { 'x': x, 'y': y, 'speed': currentSpeed };
+    var ArcLengthSinPerPi = 3.82019;
+    var SinCosResolution = 20;
+    var SinCosMaxRadius = 200;     // mm
+    var SinCosRadius = getRndInteger(50, SinCosMaxRadius);     // mm
+    var SinCosCurrentAngle = 0;
+    var stepsT = (SinCosRadius / SinCosResolution) / SimulationCurrentSpeed;
+    var stepsX = SinCosRadius / SinCosResolution;
+
+    var newPoints = [];
+    var newX = 0, tmpX = 0, newY = 0, t = 0;
+    while (t < eventDuration) {
+        tmpX = tmpX + stepsX;
+        if (tmpX >= 4 * SinCosRadius) {
+            tmpX = 0
+        }
+        if (tmpX <= SinCosRadius || 3 * SinCosRadius < tmpX && tmpX < 4 * SinCosRadius) {
+            newY = Math.sin(tmpX / SinCosRadius * Math.PI);
+            newX = tmpX;
+        }
+        else {
+            newY = - Math.sin((tmpX - SinCosRadius) / SinCosRadius * Math.PI);
+            newX = SinCosRadius - tmpX;
+        }
+        var x = TmpCurrentPos.x + newX;
+        var y = TmpCurrentPos.y + newY;
+        newPoints.push({ 'x': x, 'y': y, 'speed': SimulationCurrentSpeed, 'OnOff': true });
+        t = t + stepsT;
+    }
+    return newPoints;
 }
 
 function EventBlink() {
-    return newPoint; // { 'x': x, 'y': y, 'speed': currentSpeed };
+    eventDuration = 0;
+    return currentPos; // { 'x': x, 'y': y, 'speed': currentSpeed, 'OnOff': true };
 }
 
 function EventStandStill() {
-    return newPoint; // { 'x': x, 'y': y, 'speed': currentSpeed };
+    eventDuration = 0;
+    return currentPos; // { 'x': x, 'y': y, 'speed': currentSpeed, 'OnOff': true };
 }
 
 function EventWollkneul() {
-    return newPoint; // { 'x': x, 'y': y, 'speed': currentSpeed };
+    eventDuration = 0;
+    return currentPos; // { 'x': x, 'y': y, 'speed': currentSpeed, 'OnOff': true };
 }
 
 function EventForwardBackward() {
-    return newPoint; // { 'x': x, 'y': y, 'speed': currentSpeed };
+    eventDuration = 0;
+    return currentPos; // { 'x': x, 'y': y, 'speed': currentSpeed, 'OnOff': true };
 }
 
 // will be executed after a new Playground is loaded
@@ -526,4 +573,54 @@ function get_line_intersection(A1, A2, B1, B2) {
 
 function toRadians(angle) {
     return angle * (Math.PI / 180);
+}
+
+
+
+
+
+
+
+////////////////////////// MUST BE FIXED!!!
+////////////////////////// MUST BE FIXED!!!
+////////////////////////// MUST BE FIXED!!!
+function EventSpiral() {
+    var CircleMaxRadius = 2000;         // mm
+    var CircleMaxSpeed = 1000;          // mm per second
+    var CircleMaxSpirals = 3;
+    var CircleResolution = 30;
+
+    var AngleSteps = 360 / CircleResolution;
+    var stepR = CircleMaxRadius / (CircleResolution * CircleMaxSpirals);
+    var currentR = 0;
+    var t = 0;
+    var newPoints = [];
+    var newX, newY;
+    var currentAngle = 0;
+    var newPos = currentPos;
+    while (t < eventDuration) {
+        currentR = currentR + stepR;
+        if (currentR > CircleMaxRadius) {
+            stepR = -stepR;
+            currentR = currentR + stepR;
+        }
+        if (currentR <= 0) {
+            stepR = -stepR;
+            currentR = currentR + stepR;
+        }
+        newX = currentR * Math.sin(toRadians(currentAngle));
+        newY = currentR * Math.cos(toRadians(currentAngle));
+        currentAngle = currentAngle + AngleSteps;
+        // add new point to array
+        var A = newPos;
+        var x = TmpCurrentPos.x + newX;
+        var y = TmpCurrentPos.y + newY;
+        newPos = { 'x': x, 'y': y, 'speed': SimulationCurrentSpeed, 'OnOff': true };
+        var B = newPos;
+        newPoints.push(newPos);
+        // calc passed time to arrive to new point
+        var distance = Math.sqrt(Math.pow(B.x - A.x, 2) + Math.pow(B.y - A.y, 2));
+        t = t + distance / SimulationCurrentSpeed;
+    }
+    return newPoints;
 }
