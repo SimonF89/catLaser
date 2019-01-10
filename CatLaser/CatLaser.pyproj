@@ -42,6 +42,15 @@
     <Compile Include="app\tests.py" />
     <Compile Include="app\views.py" />
     <Compile Include="app\__init__.py" />
+    <Compile Include="CatLaser\hardware\pca9685.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CatLaser\hardware\runner.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CatLaser\hardware\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="manage.py" />
     <Compile Include="CatLaser\__init__.py" />
     <Compile Include="CatLaser\settings.py" />
@@ -59,6 +68,7 @@
     <Folder Include="app\templates\" />
     <Folder Include="app\templates\app\" />
     <Folder Include="CatLaser\" />
+    <Folder Include="CatLaser\hardware\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="app\static\app\scripts\catLaser.js" />
