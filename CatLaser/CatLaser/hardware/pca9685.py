@@ -56,7 +56,7 @@ class PCA9685:
                 for direction in range(self.current_angle, target_angle, -1):
                     self.setDirection(direction, break_time)
         self.current_angle = target_angle
-        self.setDuty(0,0)
+        self.setDuty(self.channel,0)
 
     def setFreq(self, freq):
         '''
