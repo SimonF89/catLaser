@@ -64,6 +64,8 @@ class Playground(models.Model):
     minY = models.FloatField(verbose_name="Min Y",default=0.0)
     maxY = models.FloatField(verbose_name="Max Y",default=0.0)
 
+    def getLaser(self):
+        return LaserPosition.objects.filter(playground=self)
     def getEdges(self):
         return Edge.objects.filter(playground=self)
     def getPoints(self):
@@ -73,6 +75,7 @@ class Playground(models.Model):
     def getRunPoints(self):
         return Point.objects.filter(playground=self,type=PointTypes.run_point)
 
+    laser = property(getLaser)
     edges = property(getEdges)
     points = property(getPoints)
     corners = property(getCorners)
@@ -305,6 +308,15 @@ class Point(models.Model):
 
     def __str__(self):
         return 'x: ' + str(self.x) + ', y: ' + str(self.y) + ', Type: ' + self.type
+
+class LaserPosition(models.Model):
+    x = models.FloatField(verbose_name="X-Value")
+    y = models.FloatField(verbose_name="Y-Value")
+    z = models.FloatField(verbose_name="Z-Value")
+    playground = models.OneToOneField(Playground,verbose_name="Laser",on_delete=models.CASCADE)
+    
+    def __str__(self):
+        return 'x: ' + str(self.x) + ', y: ' + str(self.y) + ', z: ' + str(self.z)
 
 class Edge(models.Model):
     A = models.ForeignKey(Point,verbose_name="Point A",related_name='A',on_delete=models.CASCADE)

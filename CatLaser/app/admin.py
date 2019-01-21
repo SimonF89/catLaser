@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Point, Edge, Playground, PointTypes
+from .models import Point, Edge, Playground, PointTypes, LaserPosition
 from .forms import EdgeForm
 
 
@@ -13,17 +13,20 @@ class PointInline(admin.TabularInline):
     def get_queryset(self, request):
         qs = super(PointInline, self).get_queryset(request)
         return qs.filter(type=PointTypes.corner) | qs.filter(type=PointTypes.run_point)
-    
+
 class EdgeInline(admin.TabularInline):
     model = Edge
     readonly_fields = ["A", "B", "M", "Vr", "Nr"]
     extra = 0
 
+class LaserPositionInline(admin.TabularInline):
+    model = LaserPosition
+
 class PlaygroundAdmin(admin.ModelAdmin):
     search_fields = ['name']
     readonly_fields = ('active','minX','minY','maxX','maxY')
     list_display = ('name','active','minX','minY','maxX','maxY')
-    inlines = [PointInline,EdgeInline]
+    inlines = [LaserPositionInline,PointInline,EdgeInline]
 
     def response_add(self, request, playground_obj):
         playground_obj.customInit(playground_obj)
