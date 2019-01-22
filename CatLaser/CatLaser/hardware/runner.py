@@ -30,9 +30,11 @@ class Runner(Thread):
 
     EVENT_PROPABILITY = 20      # in %
     INIT_FEATURE_ID = 0
+    FEATURE_COUNT = 2
     INIT_EVENT_ID = 0
     INIT_SPEED = 0
 
+    playgorund = None
     running = False
     
     current_Feature_ID  = INIT_FEATURE_ID
@@ -69,7 +71,23 @@ class Runner(Thread):
         self.arrived = False
 
     def run(self):
-        pass
+        while True:
+            if self.running:
+                if len(self.Targets) > 0:
+                    self.moveTo(self.Targets.pop(0))
+                else:
+                    featureID = randint(1,FEATURE_COUNT)
+                    newTargets = []
+                    if featureID == 1:
+                        newTargets = self.FeatureABC()
+                    elif featureID == 2:
+                        newTargets = self.FeatureZickZack()
+                    else:
+                        raise ValueError('Feature: ' + str(featureID) + ", does not exist!")
+                    self.Targets = self.Targets + newTargets
+            else:
+                self.playgorund = self.getRunningPlayground()
+                if self.playgorund:
 
     #def start(self):
     #    pass
