@@ -8,117 +8,94 @@ from CatLaser.hardware.pca9685 import PCA9685
 class MinMax:
     MIN_SPEED = 100                 # [mm/s]
     MAX_SPEED = 4000                # [mm/s]
-    MIN_FEATURE_DURATION = 10000    # [ms]
-    MAX_FEATURE_DURATION = 30000    # [ms]
-    MIN_EVENT_DURATION = 500        # [ms]
-    MAX_EVENT_DURATION = 5000       # [ms]
 
 class Target:
     # x,y = planar coordinates of laser-point
     # speed = speed for Feature to move to Target
     # isON = is LaserPointer ON or OFF while moving to target
     # duration = time to wait on this Target till next Target. Initialy its 0. But for blink-events duration can be set > 0
-    def __init__(self, x, y, speed, isON, duration=0):
+    def __init__(self, x, y, speed, isON=True):
         self.x = x
         self.y = y
         self.speed = speed
         self.isOn = isON
-        self.duration = duration
 
 class Runner(Thread):
     pca = PCA9685(channels=[0,1])
-
-    EVENT_PROPABILITY = 20      # in %
-    INIT_FEATURE_ID = 0
-    FEATURE_COUNT = 2
-    INIT_EVENT_ID = 0
-    INIT_SPEED = 0
-
     playgorund = None
-    running = False
-    
-    current_Feature_ID  = INIT_FEATURE_ID
-    featureDuration = 0
-    current_Event_ID = INIT_EVENT_ID
-    eventDuration = 0
-    current_speed = INIT_SPEED              # needed? Or better Targets[0].speed
     Targets = []
-    tmpTargets = []
-    arrived = False
 
-    def __init__(self, playground):
+    laser = None
+    run_points = None
+    currentPos = None
+    edges = None
+    current_speed = None
+
+    def __init__(self):
         Thread.__init__(self)
-        self.setNewPlayground(playground)
-
-    def setNewPlayground(self, playground):
-        self.playgorund = playground
-        self.laser = self.playgorund.laser
-        self.edges = playground.edges
-        self.run_points = playgorund.run_points
-
-        P0 = playground.run_points[0]
-        firstTarget = Target(P0.x, P0.y, MinMax.MAX_SPEED, True)
-
-        self.moveTo(firstTarget)
-
-        self.currentPos = firstTarget
-        self.running = False
-        self.current_Feature_ID  = INIT_FEATURE_ID
-        self.current_Event_ID = INIT_EVENT_ID
-        self.current_speed = INIT_SPEED              # needed? Or better Targets[0].speed
-        self.Targets = [firstTarget]
-        self.tmpTargets = []
-        self.arrived = False
 
     def run(self):
         while True:
-            if self.running:
-                if len(self.Targets) > 0:
-                    self.moveTo(self.Targets.pop(0))
-                else:
-                    featureID = randint(1,FEATURE_COUNT)
-                    newTargets = []
-                    if featureID == 1:
-                        newTargets = self.FeatureABC()
-                    elif featureID == 2:
-                        newTargets = self.FeatureZickZack()
-                    else:
-                        raise ValueError('Feature: ' + str(featureID) + ", does not exist!")
-                    self.Targets = self.Targets + newTargets
+            if self.playgorund:
+                if self.playgorund.active:
+                    self.execute()
             else:
                 self.playgorund = self.getRunningPlayground()
                 if self.playgorund:
+                    self.initPlayground(self.playgorund)
+                # for debuging, delete
+                # for debuging, delete
+                # for debuging, delete
+                print("active playground: " + self.playgorund)
+                # for debuging, delete
+                # for debuging, delete
+                # for debuging, delete
 
-    #def start(self):
-    #    pass
+    def initPlayground(self, playground):
+        self.laser = playground.laser
+        self.edges = playgorund.edges
+        self.run_points = playgorund.run_points
+        self.currentPos = self.run_points[0]
 
-    #def stop(self):
-    #    pass
+    def getRunningPlayground(self):
+        return Playground.objects.filter(active=True)
 
+    def execute(self):
+        if len(self.Targets) > 0:
+            self.moveTo(self.Targets.pop(0))
+        else:
+            featureID = randint(1,FEATURE_COUNT)
+            self.current_speed = randint(MinMax.MIN_SPEED, MinMax.MAX_SPEED)
+            newTargets = []
+            if featureID == 1:
+                newTargets = self.FeatureABC()
+            elif featureID == 2:
+                newTargets = self.FeatureZickZack()
+            else:
+                raise ValueError('Feature: ' + str(featureID) + ", does not exist!")
+            self.Targets = self.Targets + newTargets
 
     def moveTo(self, target):
         alpha = toDegree(math.atan((self.laser.x - target.x)/(self.laser.y - target.y)))
         beta = toDegree(math.atan(self.laser.z / math.sqrt(math.pow(self.laser.x - target.x, 2) + math.pow(self.laser.y - target.y, 2))))
         self.pca.moveServoConcurrent([alpha, beta])
-        pass
+        self.currentPos = target
+
+    ####################################################
+    ##################### Features #####################
+    ####################################################
 
     ABCcounter = -1
     ABCstep = 1
     def FeatureABC(self):
-        if len(self.run_points) == 0:
-            self.featureDuration = 0
-            raise ValueError('no Run-Points defined! Simulation stoped!')
-            self.running = False
-            return None
-        else:
+        self.ABCcounter = self.ABCcounter + self.ABCstep
+        if self.ABCcounter >= len(self.run_points):
+            self.ABCstep = -self.ABCstep
             self.ABCcounter = self.ABCcounter + self.ABCstep
-            if self.ABCcounter >= len(self.run_points):
-                self.ABCstep = -self.ABCstep
-                self.ABCcounter = self.ABCcounter + self.ABCstep
-            elif self.ABCcounter < 0:
-                self.ABCstep = -self.ABCstep
-                self.ABCcounter = self.ABCcounter + self.ABCstep
-            return Target(self.run_points[self.ABCcounter].x, self.run_points[self.ABCcounter].y, self.current_speed, True)
+        elif self.ABCcounter < 0:
+            self.ABCstep = -self.ABCstep
+            self.ABCcounter = self.ABCcounter + self.ABCstep
+        return Target(self.run_points[self.ABCcounter].x, self.run_points[self.ABCcounter].y, self.current_speed)
 
     ZickZackcurrentDir = point(1, 1)
     def FeatureZickZack(self):
@@ -158,7 +135,7 @@ class Runner(Thread):
         randomY = randint(-100, 100) / 100
         ZickZackcurrentDir = point(randomX, randomY)
 
-        return Target(newX, newY, self.current_speed, True)
+        return Target(newX, newY, self.current_speed)
 
     def get_line_intersection(self, A1, A2, B1, B2):
         a = A2.y - A1.y

@@ -9,6 +9,14 @@ from datetime import datetime
 
 from .models import Playground, Edge, Point, PointTypes
 
+
+################################################################
+from CatLaser.hardware.runner import Runner
+runner = Runner()
+runner.start()
+################################################################
+
+
 def home(request):
     """Renders the home page."""
     assert isinstance(request, HttpRequest)
