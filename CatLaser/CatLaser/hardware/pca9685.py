@@ -22,13 +22,15 @@ class PCA9685:
         @param bus: the SMBus instance to access the i2c port (0 or 1).
         @param address: the address of the i2c chip (default: 0x40)
         '''
-        self.bus = SMBus(1) # Raspberry Pi revision 2
+        self.bus = SMBus(1)                     # Raspberry Pi revision 2
         self.address = address
         self._writeByte(self._mode_adr, 0x00)
         self.channels = channels
-        self.current_angles = [0,0]   # [degree]
-        self.maxSpeed = 335           # [degree/second]
-        self.minSpeed = 10            # [degree/second]
+        self.current_angles = []                # [degree]
+        for channel in self.channels:
+            self.current_angles.append(0)
+        self.maxSpeed = 335                     # [degree/second]
+        self.minSpeed = 10                      # [degree/second]
         
         self.fPWM = 50
         
@@ -67,9 +69,9 @@ class PCA9685:
     def setDirections(self, channel, direction):
         duty = self.a / 180 * direction + self.b
         self.setDuty(channel, duty)  
-        
+    
     # target_angles must be in same order as channels!
-    def moveServoConcurrent(self, speed, target_angles):
+    def moveNServosConcurrent(self, speed, target_angles):
         if len(self.channels) != len(target_angles):
             raise ValueError('Less target_angles then channels!')
         else:
@@ -79,14 +81,13 @@ class PCA9685:
                 speed = self.maxSpeed
             
             # get smallest DeltaAngle
-            delta0 = abs(target_angles[0] - self.current_angles[0])
-            delta1 = abs(target_angles[1] - self.current_angles[1])
-            smallestDelta = delta0
-            if delta0 >= delta1:
-                smallestDelta = delta1
-                
-            print("smallestDelta" + str(smallestDelta))
-
+            smallestDelta = 360
+            smallestID = 0
+            for i in range(len(target_angles)):
+                delta = abs(target_angles[0] - self.current_angles[0])
+                if delta < smallestDelta:
+                    smallestDelta = delta
+            
             # get directions
             steps = []
             factor = 1
@@ -97,8 +98,6 @@ class PCA9685:
                     steps.append(int(1 * factor))
                 else:
                     steps.append(int(-1 * factor))
-                    
-            print("steps " + str(steps))
             
             # move motors to position concurrent
             break_time = abs((abs(target_angles[0] - self.current_angles[0])/speed - 0.1706)/181)
@@ -118,8 +117,8 @@ class PCA9685:
             for i in range(len(target_angles)):
                 if target_angles[i] != self.current_angles[i]:
                     self.moveServo(speed, self.channels[i], target_angles[i])
-                self.setDuty(self.channels[i], 0)                
-
+                self.setDuty(self.channels[i], 0) 
+    
     def setFreq(self, freq):
         '''
         Sets the PWM frequency. The value is stored in the device.
