@@ -21,6 +21,8 @@ class Target:
         self.isOn = isON
 
 class Runner(Thread):
+    FEATURE_COUNT = 2
+    
     pca = PCA9685(channels=[0,1])
     playgorund = None
     Targets = []
@@ -46,25 +48,25 @@ class Runner(Thread):
                 # for debuging, delete
                 # for debuging, delete
                 # for debuging, delete
-                print("active playground: " + self.playgorund)
+                print("active playground: " + self.playgorund.name)
                 # for debuging, delete
                 # for debuging, delete
                 # for debuging, delete
 
     def initPlayground(self, playground):
         self.laser = playground.laser
-        self.edges = playgorund.edges
-        self.run_points = playgorund.run_points
+        self.edges = playground.edges
+        self.run_points = playground.run_points
         self.currentPos = self.run_points[0]
 
     def getRunningPlayground(self):
-        return Playground.objects.filter(active=True)
+        return Playground.objects.select_related().get(active=True)
 
     def execute(self):
         if len(self.Targets) > 0:
             self.moveTo(self.Targets.pop(0))
         else:
-            featureID = randint(1,FEATURE_COUNT)
+            featureID = randint(1,self.FEATURE_COUNT)
             self.current_speed = randint(MinMax.MIN_SPEED, MinMax.MAX_SPEED)
             newTargets = []
             if featureID == 1:
@@ -73,12 +75,15 @@ class Runner(Thread):
                 newTargets = self.FeatureZickZack()
             else:
                 raise ValueError('Feature: ' + str(featureID) + ", does not exist!")
-            self.Targets = self.Targets + newTargets
+            if isinstance(newTargets, list):
+                self.Targets = self.Targets + newTargets
+            else:
+                self.Targets.append(newTargets)
 
     def moveTo(self, target):
-        alpha = toDegree(math.atan((self.laser.x - target.x)/(self.laser.y - target.y)))
-        beta = toDegree(math.atan(self.laser.z / math.sqrt(math.pow(self.laser.x - target.x, 2) + math.pow(self.laser.y - target.y, 2))))
-        self.pca.moveServoConcurrent([alpha, beta])
+        alpha = self.toDegree(math.atan((self.laser.x - target.x)/(self.laser.y - target.y)))
+        beta = self.toDegree(math.atan(self.laser.z / math.sqrt(math.pow(self.laser.x - target.x, 2) + math.pow(self.laser.y - target.y, 2))))
+        self.pca.moveNServosConcurrent(self.current_speed,[int(alpha), int(beta)])
         self.currentPos = target
 
     ####################################################
@@ -99,12 +104,12 @@ class Runner(Thread):
 
     ZickZackcurrentDir = point(1, 1)
     def FeatureZickZack(self):
-        M
+        M = 0
         if len(self.Targets) > 0:
             M = self.Targets[len(self.Targets) - 1]
         else:
             M = self.currentPos
-        Dir = ZickZackcurrentDir
+        Dir = self.ZickZackcurrentDir
         # calculate all hits of 2D Raycast with edges
         # AND calculate the distance to nearest edge (shortestDistance)
         shortestDistance = 1000000
@@ -112,10 +117,10 @@ class Runner(Thread):
             _x = M.x + Dir.x * 1000000
             _y = M.y + Dir.y * 1000000
             pointer = point(_x, _y)
-            P = self.get_line_intersection(M, pointer, edges[i].A, edges[i].B)
+            P = self.get_line_intersection(M, pointer, self.edges[i].A, self.edges[i].B)
 
             if P.x != -6666 and P.y != -6666:
-                distance = Math.sqrt(Math.pow(M.x - P.x, 2) + Math.pow(M.y - P.y, 2))
+                distance = math.sqrt(math.pow(M.x - P.x, 2) + math.pow(M.y - P.y, 2))
                 if distance < shortestDistance:
                     shortestDistance = distance
         # catch error - if shortestDistance is still the init value, something went wrong!
@@ -124,7 +129,7 @@ class Runner(Thread):
             return self.currentPos
             # if this happens, maybe the currentPos wasent in the Playground anymore!
         # calculate new Position according to Dir and distance to next edge (shortestDistance)
-        offset = randint(shortestDistance / 20, shortestDistance)
+        offset = randint(int(shortestDistance / 20), int(shortestDistance))
         DirAbs = math.sqrt(math.pow(Dir.x, 2) + math.pow(Dir.y, 2))
         factor = (shortestDistance - offset) / DirAbs
         newX = M.x + Dir.x * factor

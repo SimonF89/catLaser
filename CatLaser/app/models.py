@@ -65,7 +65,7 @@ class Playground(models.Model):
     maxY = models.FloatField(verbose_name="Max Y",default=0.0)
 
     def getLaser(self):
-        return LaserPosition.objects.filter(playground=self)
+        return LaserPosition.objects.get(playground=self)
     def getEdges(self):
         return Edge.objects.filter(playground=self)
     def getPoints(self):
@@ -74,7 +74,7 @@ class Playground(models.Model):
         return Point.objects.filter(playground=self,type=PointTypes.corner)
     def getRunPoints(self):
         return Point.objects.filter(playground=self,type=PointTypes.run_point)
-
+    
     laser = property(getLaser)
     edges = property(getEdges)
     points = property(getPoints)

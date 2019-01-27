@@ -86,7 +86,7 @@ class PCA9685:
             for i in range(len(target_angles)):
                 delta = abs(target_angles[0] - self.current_angles[0])
                 if delta < smallestDelta:
-                    smallestDelta = delta
+                    smallestDelta = int(delta)
             
             # get directions
             steps = []

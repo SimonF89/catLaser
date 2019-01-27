@@ -41,6 +41,7 @@ class EdgeAdmin(admin.ModelAdmin):
 
 # Registered models
 admin.site.register(Point)
+admin.site.register(LaserPosition)
 admin.site.register(Edge, EdgeAdmin)
 admin.site.register(Playground, PlaygroundAdmin)
 
