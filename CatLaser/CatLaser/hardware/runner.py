@@ -1,8 +1,10 @@
 from threading import Thread
 import math
+import time
 from random import randint
 from app.models import Playground, Point, Edge, PointTypes, point
 from CatLaser.hardware.pca9685 import PCA9685
+import RPi.GPIO as GPIO
 
 
 class MinMax:
@@ -28,13 +30,18 @@ class Runner(Thread):
     Targets = []
 
     laser = None
+    ledPin = 4
     run_points = None
     currentPos = None
     edges = None
-    current_speed = None
+    current_speed = 100
 
     def __init__(self):
         Thread.__init__(self)
+        self.pca.moveNServosConcurrent(100,[90,90])
+        self.pca.moveNServosConcurrent(100,[0,0])
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.ledPin, GPIO.OUT)
 
     def run(self):
         while True:
@@ -81,10 +88,21 @@ class Runner(Thread):
                 self.Targets.append(newTargets)
 
     def moveTo(self, target):
-        alpha = self.toDegree(math.atan((self.laser.x - target.x)/(self.laser.y - target.y)))
-        beta = self.toDegree(math.atan(self.laser.z / math.sqrt(math.pow(self.laser.x - target.x, 2) + math.pow(self.laser.y - target.y, 2))))
+        if target.isOn:
+            GPIO.output(self.ledPin, GPIO.HIGH)
+        else:
+            GPIO.output(self.ledPin, GPIO.LOW)
+        alpha, beta = self.getAngles(target)
         self.pca.moveNServosConcurrent(self.current_speed,[int(alpha), int(beta)])
         self.currentPos = target
+
+    def getAngles(self, target):
+        alpha = self.toDegree(math.atan((self.laser.x - target.x)/(self.laser.y - target.y))) + 90
+        beta = self.toDegree(math.atan(self.laser.z / math.sqrt(math.pow(self.laser.x - target.x, 2) + math.pow(self.laser.y - target.y, 2))))
+        # if target.y < self.laser.y --> beta must be increaded by 90 degrees
+        if target.y < self.laser.y:
+            beta = beta + 90
+        return alpha, beta
 
     ####################################################
     ##################### Features #####################
