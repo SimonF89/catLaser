@@ -3,13 +3,13 @@ import math
 import time
 from random import randint
 from app.models import Playground, Point, Edge, PointTypes, point
-from CatLaser.hardware.pca9685 import PCA9685
+from CatLaser.hardware.ServoController import ServoController
 import RPi.GPIO as GPIO
 
 
 class MinMax:
-    MIN_SPEED = 10                 # [mm/s]
-    MAX_SPEED = 30                 # [mm/s]
+    MIN_SPEED = 1
+    MAX_SPEED = 1     # all max is 100
     MIN_DURATION = 5                # [targets/feature]
     MAX_DURATION = 20               # [targets/feature]
     MAX_DISTANCE = 300              # [mm]
@@ -34,7 +34,7 @@ class Target:
 class Runner(Thread):
     FEATURE_COUNT = 2
     
-    pca = PCA9685(channels=[0,1])
+    servo = ServoController()
     playgorund = None
     Targets = []
 
@@ -43,12 +43,10 @@ class Runner(Thread):
     run_points = None
     currentPos = None
     edges = None
-    current_speed = 100
+    current_speed = 10
 
     def __init__(self):
         Thread.__init__(self)
-        #self.pca.moveNServosConcurrent(100,[90,90])
-        #self.pca.moveNServosConcurrent(100,[0,0])
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.ledPin, GPIO.OUT)
 
@@ -113,18 +111,18 @@ class Runner(Thread):
                 else:
                     self.Targets.append(newTargets)
 
-            ## add random breaks
-            #if randint(0,10) >= 7:
-            #    breakTime = randint(MinMax.MIN_BREAK, MinMax.MAX_BREAK)
-            #    self.Targets.append(Target(0, 0, self.current_speed, Break=1/breakTime, isBreak=True))
+            # add random breaks
+            if randint(0,10) >= 7:
+                breakTime = randint(MinMax.MIN_BREAK, MinMax.MAX_BREAK)
+                self.Targets.append(Target(0, 0, self.current_speed, Break=1/breakTime, isBreak=True))
 
-            ## add random blinks
-            #if randint(0,10) >= 7:
-            #    blinkCount = randint(MinMax.MIN_BLINKS, MinMax.MAX_BLINKS)
-            #    blinkSpeed = randint(MinMax.MIN_BREAK, MinMax.MAX_BREAK)
-            #    for i in range(blinkCount):
-            #        self.Targets.append(Target(0, 0, self.current_speed, isON=False, Break=1/blinkSpeed, isBreak=True))
-            #        self.Targets.append(Target(0, 0, self.current_speed, isON=True, Break=1/blinkSpeed, isBreak=True))
+            # add random blinks
+            if randint(0,10) >= 7:
+                blinkCount = randint(MinMax.MIN_BLINKS, MinMax.MAX_BLINKS)
+                blinkSpeed = randint(MinMax.MIN_BREAK, MinMax.MAX_BREAK)
+                for i in range(blinkCount):
+                    self.Targets.append(Target(0, 0, self.current_speed, isON=False, Break=1/blinkSpeed, isBreak=True))
+                    self.Targets.append(Target(0, 0, self.current_speed, isON=True, Break=1/blinkSpeed, isBreak=True))
 
     def calcIntersteps(self, newTarget, oldTarget):
         print("oldTarget")
@@ -161,7 +159,8 @@ class Runner(Thread):
             time.sleep(target.Break)
         else:
             alpha, beta = self.getAngles(target)
-            self.pca.moveNServosConcurrent(self.current_speed,[int(alpha), int(beta)])
+            self.servo.setSpeed(self.current_speed)
+            self.servo.moveToAngle([int(alpha), int(beta)])
             self.currentPos = target
 
     def setLaserOn(self):
