@@ -9,9 +9,9 @@ import RPi.GPIO as GPIO
 
 class MinMax:
     MIN_SPEED = 1
-    MAX_SPEED = 1     # all max is 100
-    MIN_DURATION = 5                # [targets/feature]
-    MAX_DURATION = 20               # [targets/feature]
+    MAX_SPEED = 7     # all max is 100
+    MIN_DURATION = 2                # [targets/feature]
+    MAX_DURATION = 10               # [targets/feature]
     MAX_DISTANCE = 300              # [mm]
     MIN_BREAK = 1                   # [s]
     MAX_BREAK = 4                   # [s]
@@ -44,6 +44,7 @@ class Runner(Thread):
     currentPos = None
     edges = None
     current_speed = 10
+    featureID = 1
 
     def __init__(self):
         Thread.__init__(self)
@@ -80,42 +81,44 @@ class Runner(Thread):
             self.debugTarget(t)
             
     def debugTarget(self, target):
-        print("x=" + str(target.x) + ", y=" + str(target.y))
+        print("x=" + str(target.x) + ", y=" + str(target.y) + ", feature: " + str(self.featureID))
     
     def execute(self):
         if len(self.Targets) > 0:
             self.moveTo(self.Targets.pop(0))
         else:
-            featureID = randint(1,self.FEATURE_COUNT)
+            self.featureID = randint(1,self.FEATURE_COUNT)
             self.current_speed = randint(MinMax.MIN_SPEED, MinMax.MAX_SPEED)
             # get random amount of new targets to calculate
             targetCount = randint(MinMax.MIN_DURATION, MinMax.MAX_DURATION)
             newTargets = []
             for i in range(targetCount):
-                if featureID == 1:
+                if self.featureID == 1:
                     if len(self.Targets) > 0:
                         target = self.FeatureABC()
-                        newTargets = self.calcIntersteps(target, self.Targets[-1])
+                        newTargets = self.calcIntersteps(self.FeatureABC(), self.Targets[-1])
                     else:
                         newTargets = self.calcIntersteps(self.FeatureABC(), self.currentPos)
-                elif featureID == 2:
+                elif self.featureID == 2:
                     if len(self.Targets) > 0:
                         newTargets = self.calcIntersteps(self.FeatureZickZack(), self.Targets[-1])
                     else:
                         newTargets = self.calcIntersteps(self.FeatureZickZack(), self.currentPos)
                 else:
-                    raise ValueError('Feature: ' + str(featureID) + ", does not exist!")
+                    raise ValueError('Feature: ' + str(self.featureID) + ", does not exist!")
                 # add newTargets to target list
                 if isinstance(newTargets, list):
                     self.Targets = self.Targets + newTargets
                 else:
                     self.Targets.append(newTargets)
+            print("debug")
+            self.debugTargets(self.Targets)
 
             # add random breaks
             if randint(0,10) >= 7:
                 breakTime = randint(MinMax.MIN_BREAK, MinMax.MAX_BREAK)
                 self.Targets.append(Target(0, 0, self.current_speed, Break=1/breakTime, isBreak=True))
-
+            
             # add random blinks
             if randint(0,10) >= 7:
                 blinkCount = randint(MinMax.MIN_BLINKS, MinMax.MAX_BLINKS)
@@ -125,11 +128,6 @@ class Runner(Thread):
                     self.Targets.append(Target(0, 0, self.current_speed, isON=True, Break=1/blinkSpeed, isBreak=True))
 
     def calcIntersteps(self, newTarget, oldTarget):
-        print("oldTarget")
-        self.debugTarget(oldTarget)
-        print("newTarget")
-        self.debugTarget(newTarget)
-        
         distance = self.getDistance(newTarget, oldTarget)
         stepsCount = math.floor(distance / MinMax.MAX_DISTANCE)
         if stepsCount > 0:
@@ -137,7 +135,6 @@ class Runner(Thread):
             # calc direction from oldTarget to newTarget
             direction = point(newTarget.x - oldTarget.x, newTarget.y - oldTarget.y)
             newSteps = []
-            print("stepscount: " + str(stepsCount))
             for i in range(stepsCount):
                 newX = oldTarget.x + direction.x / distance * interstep * i
                 newY = oldTarget.y + direction.y / distance * interstep * i
@@ -160,7 +157,7 @@ class Runner(Thread):
         else:
             alpha, beta = self.getAngles(target)
             self.servo.setSpeed(self.current_speed)
-            self.servo.moveToAngle([int(alpha), int(beta)])
+            self.servo.moveToAngle([int(-alpha), int(beta)])
             self.currentPos = target
 
     def setLaserOn(self):
@@ -170,7 +167,7 @@ class Runner(Thread):
         GPIO.output(self.ledPin, GPIO.LOW)
 
     def getAngles(self, target):
-        alpha = self.toDegree(math.atan((self.laser.x - target.x)/(self.laser.y - target.y))) + 90
+        alpha = self.toDegree(math.atan((self.laser.x - target.x)/(self.laser.y - target.y)))
         beta = self.toDegree(math.atan(self.laser.z / math.sqrt(math.pow(self.laser.x - target.x, 2) + math.pow(self.laser.y - target.y, 2))))
         
         # convert beta so 90degree == middle of 180degree
@@ -200,7 +197,7 @@ class Runner(Thread):
     def FeatureZickZack(self):
         M = 0
         if len(self.Targets) > 0:
-            M = self.Targets[len(self.Targets) - 1]
+            M = self.Targets[-1]
         else:
             M = self.currentPos
         Dir = self.ZickZackcurrentDir
@@ -224,16 +221,28 @@ class Runner(Thread):
             return self.currentPos
             # if this happens, maybe the currentPos wasent in the Playground anymore!
         # calculate new Position according to Dir and distance to next edge (shortestDistance)
-        offset = randint(int(shortestDistance / 20), int(shortestDistance))
+        offset = randint(int(shortestDistance/5), int(shortestDistance))
         DirAbs = math.sqrt(math.pow(Dir.x, 2) + math.pow(Dir.y, 2))
         factor = (shortestDistance - offset) / DirAbs
         newX = M.x + Dir.x * factor
         newY = M.y + Dir.y * factor
-
+        
         # rotate Dir Vector Randomly
         randomX = randint(-100, 100) / 100
         randomY = randint(-100, 100) / 100
-        ZickZackcurrentDir = point(randomX, randomY)
+        self.ZickZackcurrentDir = point(randomX, randomY)
+        
+        # DEBUG DEBUG DEBUG
+        #print("shortestDistance: " +str(shortestDistance))
+        #print("offset: " +str(offset))
+        #print("DirAbs: " +str(DirAbs))
+        #print("Dir.x: " + str(self.ZickZackcurrentDir.x) + "Dir.y: " + str(self.ZickZackcurrentDir.y))
+        #if len(self.Targets) > 0:
+        #    print("oldX" + str(self.Targets[-1].x) + ", oldY" + str(self.Targets[-1].y))
+        #else:
+        #    print("oldX" + str(self.currentPos.x) + ", oldY" + str(self.currentPos.y))
+        #print("newX" + str(newX) + ", newY" + str(newY))
+        # DEBUG DEBUG DEBUG
 
         return Target(newX, newY, self.current_speed)
 

@@ -18,8 +18,8 @@ class AngleMap:
 
 class ServoController:
     decimalResolution = 1
-    maxBreakTime = 0.1
-    breakTime = 0.1
+    maxBreakTime = 0.2
+    breakTime = 0.2
     currentPositions = [2.4, 2.0]
     InitPosition = [6.0, 5.3]
     AngleMaps = [
@@ -38,8 +38,8 @@ class ServoController:
     def setSpeed(self, speed):
         if speed > 100:
             speed = 100
-        if speed < 0:
-            speed = 0
+        if speed < 1:
+            speed = 1
         self.breakTime = self.maxBreakTime / speed
         
     def moveToAngle(self, angles):
